@@ -234,6 +234,28 @@ router.put('/:id', [
       updateValues
     );
 
+    // Get the user who submitted the report
+    const user = await pool.query(
+      'SELECT id, email, first_name, last_name FROM users WHERE id = $1',
+      [updatedReport.rows[0].user_id]
+    );
+
+    // Create notification for the user who submitted the report
+    if (status && status !== 'pending') {
+      const notification = {
+        title: `Report Status Updated`,
+        message: `Your report "${updatedReport.rows[0].title}" has been ${status === 'approved' ? 'approved' : 'rejected'}.`,
+        type: 'report_status',
+        related_report_id: updatedReport.rows[0].id
+      };
+
+      // Send PostgreSQL notification
+      await notificationService.sendPostgresNotification(updatedReport.rows[0].user_id, notification);
+      
+      // Send Socket.IO notification
+      notificationService.sendRealTimeNotification(updatedReport.rows[0].user_id, notification);
+    }
+
     // Create notification for user
     if (status && status !== report.rows[0].status) {
       // Notify the report owner about status change

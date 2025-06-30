@@ -84,6 +84,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           shouldShowAlert: true,
           shouldPlaySound: true,
           shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true
         }),
       });
 
@@ -146,7 +148,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         console.log('No auth token found, skipping socket connection');
         return;
       }
-
+      
       console.log('Auth token found, length:', token.length);
       tokenRef.current = token;
 
@@ -155,8 +157,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       console.log('Connecting to WebSocket:', wsUrl);
       
       const socket = io(wsUrl, {
-        auth: { token },
         transports: ['websocket', 'polling'],
+        auth: { token },
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
         timeout: 10000,
         forceNew: true
       });
@@ -178,8 +183,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         console.error('Socket connection error:', error);
         console.error('Error details:', {
           message: error.message,
-          type: error.type,
-          description: error.description
+          ...(error as any).type && { type: (error as any).type },
+          ...(error as any).description && { description: (error as any).description }
         });
         setIsConnected(false);
       });
@@ -189,10 +194,30 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       });
 
       // Notification events
-      socket.on('new_notification', (notification: Notification) => {
-        console.log('New notification received:', notification);
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
+      socket.on('new_notification', (notification: any) => {
+        try {
+          // Ensure notification data matches our expected structure
+          const typedNotification: Notification = {
+            id: notification.id,
+            title: notification.title,
+            description: notification.description,
+            type: notification.type,
+            location: notification.location,
+            latitude: notification.latitude,
+            longitude: notification.longitude,
+            severity: notification.severity,
+            data: notification.data,
+            is_read: notification.is_read || false,
+            created_at: notification.created_at
+          };
+          
+          console.log('New notification received:', typedNotification);
+          setNotifications(prev => [typedNotification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+        } catch (error) {
+          console.error('Error processing notification:', error);
+          console.error('Received notification data:', notification);
+        }
         
         // Show local notification if app is in foreground
         if (Device.isDevice) {
