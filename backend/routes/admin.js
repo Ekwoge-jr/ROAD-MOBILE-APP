@@ -442,4 +442,28 @@ router.get('/connected-users', adminAuth, async (req, res) => {
   }
 });
 
+// Debug notification service
+router.get('/debug-notification-service', adminAuth, async (req, res) => {
+  try {
+    console.log('Debug notification service endpoint called');
+    
+    const debugInfo = {
+      service_exists: !!global.notificationService,
+      service_type: global.notificationService ? global.notificationService.constructor.name : 'undefined',
+      connected_users_count: global.notificationService ? global.notificationService.connectedUsers.size : 0,
+      connected_users_map: global.notificationService ? Array.from(global.notificationService.connectedUsers.entries()) : [],
+      user_locations_count: global.notificationService ? global.notificationService.userLocations.size : 0,
+      io_connected: global.notificationService ? !!global.notificationService.io : false,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('Debug info:', debugInfo);
+    
+    res.json(debugInfo);
+  } catch (error) {
+    console.error('Debug notification service error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router; 

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Dimensions, Alert } from 'react-native'
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Dimensions, Alert, KeyboardAvoidingView } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import React, { useState, useEffect } from 'react'
@@ -75,6 +75,9 @@ const UserLoginScreen = () => {
       } else {
         // Error is handled by the auth context
         console.log('Login failed');
+        if (error) {
+          Alert.alert('Login Failed', error);
+        }
       }
     } catch (error) {
       console.error('Login error:', error);

@@ -401,6 +401,24 @@ export class ApiService {
     });
   }
 
+  // User app preferences
+  async updateUserPreferences(preferences: {
+    notifications_enabled?: boolean;
+    language?: string;
+    voice_enabled?: boolean;
+    auto_location?: boolean;
+    dark_mode?: boolean;
+  }) {
+    return await this.makeRequest('/api/users/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ preferences }),
+    });
+  }
+
+  async getUserPreferences() {
+    return await this.makeRequest('/api/users/preferences');
+  }
+
   async updatePushToken(pushToken: string) {
     return await this.makeRequest('/api/users/push-token', {
       method: 'PUT',

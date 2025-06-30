@@ -35,7 +35,12 @@ const io = socketIo(server, {
     ],
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  // Add connection timeout and ping settings
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 const PORT = process.env.PORT || 3000;
@@ -126,6 +131,83 @@ app.use('/api/signs', signsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/road-state-notifications', roadStateNotificationsRoutes);
 
+// User preferences routes at /api/users/preferences
+const { auth } = require('./middleware/auth');
+const pool = require('./config/database');
+
+// Get user preferences
+app.get('/api/users/preferences', auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id;
+    
+    const result = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const preferences = result.rows[0].preferences || {
+      notifications_enabled: true,
+      language: 'English',
+      voice_enabled: false,
+      auto_location: true,
+      dark_mode: false
+    };
+    
+    res.json(preferences);
+  } catch (error) {
+    console.error('Get preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user preferences
+app.put('/api/users/preferences', auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id;
+    const { preferences } = req.body;
+    
+    if (!preferences || typeof preferences !== 'object') {
+      return res.status(400).json({ message: 'Preferences object is required' });
+    }
+    
+    // Get current preferences
+    const currentResult = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Merge with existing preferences
+    const currentPreferences = currentResult.rows[0].preferences || {};
+    const updatedPreferences = { ...currentPreferences, ...preferences };
+    
+    // Update preferences in database
+    const result = await pool.query(
+      'UPDATE users SET preferences = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, preferences',
+      [JSON.stringify(updatedPreferences), userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ 
+      preferences: updatedPreferences, 
+      message: 'Preferences updated successfully' 
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Socket.IO connection handling
 io.use(async (socket, next) => {
   try {
@@ -169,12 +251,13 @@ io.on('connection', (socket) => {
   console.log('=== Socket.IO Connection ===');
   console.log(`✅ User ${socket.userId} connected with socket ${socket.id}`);
   console.log('Current connected users before:', global.notificationService.connectedUsers.size);
+  console.log('Connected users map before:', Array.from(global.notificationService.connectedUsers.entries()));
   
   // Handle user connection
   global.notificationService.handleUserConnection(socket, socket.userId);
   
   console.log('Current connected users after:', global.notificationService.connectedUsers.size);
-  console.log('Connected users map:', Array.from(global.notificationService.connectedUsers.entries()));
+  console.log('Connected users map after:', Array.from(global.notificationService.connectedUsers.entries()));
   console.log('=== End Socket.IO Connection ===');
 
   // Handle location updates
@@ -206,8 +289,10 @@ io.on('connection', (socket) => {
     console.log('=== Socket.IO Disconnection ===');
     console.log(`User ${socket.userId} disconnected`);
     console.log('Current connected users before disconnect:', global.notificationService.connectedUsers.size);
+    console.log('Connected users map before disconnect:', Array.from(global.notificationService.connectedUsers.entries()));
     global.notificationService.handleUserDisconnection(socket.userId);
     console.log('Current connected users after disconnect:', global.notificationService.connectedUsers.size);
+    console.log('Connected users map after disconnect:', Array.from(global.notificationService.connectedUsers.entries()));
     console.log('=== End Socket.IO Disconnection ===');
   });
 });

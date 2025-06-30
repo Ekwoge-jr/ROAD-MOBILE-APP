@@ -21,6 +21,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import { ApiService, API_BASE_URL } from '../services/ApiService';
 import { useNotifications } from '../contexts/NotificationContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { t } from '../utils/translate';
+import { useFocusEffect } from '@react-navigation/native';
 
 const apiService = new ApiService();
 
@@ -71,6 +74,7 @@ export default function UserHomeScreen() {
   const [categories, setCategories] = useState<SignCategoryWithUI[]>([]);
   const [categorySigns, setCategorySigns] = useState<RoadSign[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [language, setCurrentLanguage] = useState<'en' | 'fr'>('en');
   
   const scaleAnims = useRef([
     new Animated.Value(1),
@@ -80,6 +84,52 @@ export default function UserHomeScreen() {
     new Animated.Value(1),
     new Animated.Value(1)
   ]).current;
+
+  // Detect language from AsyncStorage
+  useEffect(() => {
+    const fetchLanguage = async () => {
+      try {
+        const savedSettings = await AsyncStorage.getItem('userSettings');
+        if (savedSettings) {
+          const parsedSettings = JSON.parse(savedSettings);
+          if (parsedSettings.language === 'French') {
+            setCurrentLanguage('fr');
+          } else if (parsedSettings.language === 'English') {
+            setCurrentLanguage('en');
+          } else {
+            setCurrentLanguage('en'); // Default to English
+          }
+        }
+      } catch (e) {
+        setCurrentLanguage('en');
+      }
+    };
+    fetchLanguage();
+  }, []);
+
+  // Update language when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const updateLanguage = async () => {
+        try {
+          const savedSettings = await AsyncStorage.getItem('userSettings');
+          if (savedSettings) {
+            const parsedSettings = JSON.parse(savedSettings);
+            if (parsedSettings.language === 'French') {
+              setCurrentLanguage('fr');
+            } else if (parsedSettings.language === 'English') {
+              setCurrentLanguage('en');
+            } else {
+              setCurrentLanguage('en'); // Default to English
+            }
+          }
+        } catch (e) {
+          setCurrentLanguage('en');
+        }
+      };
+      updateLanguage();
+    }, [])
+  );
 
   // Icon mapping for categories
   const getCategoryIcon = (categoryName: string): keyof typeof MaterialIcons.glyphMap => {
@@ -195,11 +245,11 @@ export default function UserHomeScreen() {
     } catch (error) {
       console.error(`Error in ${actionName}:`, error);
       Alert.alert(
-        'Oops! Something went wrong',
-        `We couldn't ${actionName.toLowerCase()}. Please check your connection and try again.`,
+        t('oops', language),
+        t('couldnt', language).replace('{action}', actionName),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Retry', onPress: () => handleAction(action, actionName) }
+          { text: t('cancel', language), style: 'cancel' },
+          { text: t('retry', language), onPress: () => handleAction(action, actionName) }
         ]
       );
     } finally {
@@ -318,7 +368,7 @@ export default function UserHomeScreen() {
             >
               <MaterialIcons name="refresh" size={48} color="#feca57" />
             </Animatable.View>
-            <Text style={styles.loadingText}>Loading Road Signs...</Text>
+            <Text style={styles.loadingText}>{t('loadingRoadSigns', language)}</Text>
           </View>
         </LinearGradient>
       </SafeAreaView>
@@ -338,7 +388,7 @@ export default function UserHomeScreen() {
         >
           <View style={styles.errorContainer}>
             <MaterialIcons name="error" size={48} color="#ff6b6b" />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{t('errorLoadingCategories', language)}</Text>
             <TouchableOpacity 
               style={styles.retryButton}
               onPress={() => {
@@ -346,7 +396,7 @@ export default function UserHomeScreen() {
                 loadSignCategories();
               }}
             >
-              <Text style={styles.retryButtonText}>Retry</Text>
+              <Text style={styles.retryButtonText}>{t('retry', language)}</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -404,7 +454,7 @@ export default function UserHomeScreen() {
                 <View style={styles.brandTextContainer}>
                   <Text style={styles.brandText}>ROADBRO</Text>
                   <View style={styles.brandUnderline} />
-                  <Text style={styles.brandTagline}>Your Road Companion</Text>
+                  <Text style={styles.brandTagline}>{t('yourRoadCompanion', language)}</Text>
                 </View>
               </View>
               <View style={styles.headerActions}>
@@ -427,8 +477,8 @@ export default function UserHomeScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            <Text style={styles.welcomeText}>Welcome back!</Text>
-            <Text style={styles.subtitleText}>Ready for your next road adventure?</Text>
+            <Text style={styles.welcomeText}>{t('welcomeBack', language)}</Text>
+            <Text style={styles.subtitleText}>{t('readyForAdventure', language)}</Text>
           </View>
         </Animatable.View>
 
@@ -445,7 +495,7 @@ export default function UserHomeScreen() {
           >
             <View style={styles.searchContent}>
               <MaterialIcons name="search" size={20} color="rgba(255, 255, 255, 0.8)" />
-              <Text style={styles.searchPlaceholder}>Search signs...</Text>
+              <Text style={styles.searchPlaceholder}>{t('searchSigns', language)}</Text>
               <View style={styles.searchFilter}>
                 <MaterialIcons name="tune" size={18} color="#feca57" />
               </View>
@@ -466,9 +516,12 @@ export default function UserHomeScreen() {
             delay={600}
             style={styles.categoriesSection}
           >
-            <Text style={styles.sectionTitle}>Sign Categories</Text>
+            <Text style={styles.sectionTitle}>{t('signCategories', language)}</Text>
             <Text style={styles.sectionSubtitle}>
-              {categories.reduce((total, category) => total + category.signCount, 0)} signs across {categories.length} categories
+              {t('signsAcrossCategories', language, { 
+                total: categories.reduce((total, category) => total + category.signCount, 0), 
+                count: categories.length 
+              })}
             </Text>
             
             <View style={styles.signsContainer}>
@@ -504,7 +557,7 @@ export default function UserHomeScreen() {
                       <View style={styles.signContent}>
                         <Text style={styles.signTitle}>{category.name}</Text>
                         <Text style={styles.signDescription}>{category.description}</Text>
-                        <Text style={styles.signCount}>{category.signCount} signs</Text>
+                        <Text style={styles.signCount}>{category.signCount} {t('signs', language)}</Text>
                       </View>
                       <View style={styles.signArrow}>
                         <MaterialIcons name="arrow-forward" size={20} color="rgba(255, 255, 255, 0.9)" />
@@ -524,7 +577,7 @@ export default function UserHomeScreen() {
             delay={800}
             style={styles.quickActionsSection}
           >
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionTitle}>{t('quickActions', language)}</Text>
             <View style={styles.quickActionsGlass}>
               <View style={styles.quickActions}>
                 <TouchableOpacity 
@@ -534,7 +587,7 @@ export default function UserHomeScreen() {
                   <View style={styles.quickActionIcon}>
                     <MaterialIcons name="report-problem" size={24} color="#ff6b6b" />
                   </View>
-                  <Text style={styles.quickActionText}>Report Issue</Text>
+                  <Text style={styles.quickActionText}>{t('reportIssue', language)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.quickActionItem}
@@ -543,13 +596,13 @@ export default function UserHomeScreen() {
                   <View style={styles.quickActionIcon}>
                     <MaterialIcons name="map" size={24} color="#48dbfb" />
                   </View>
-                  <Text style={styles.quickActionText}>Road Map</Text>
+                  <Text style={styles.quickActionText}>{t('roadMap', language)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.quickActionItem}>
                   <View style={styles.quickActionIcon}>
                     <MaterialIcons name="support" size={24} color="#feca57" />
                   </View>
-                  <Text style={styles.quickActionText}>Support</Text>
+                  <Text style={styles.quickActionText}>{t('support', language)}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -585,7 +638,7 @@ export default function UserHomeScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.modalSubtitle}>
-                  {categorySigns.length} signs in this category
+                  {t('signsInCategory', language, { count: categorySigns.length })}
                 </Text>
               </LinearGradient>
               
@@ -619,7 +672,7 @@ export default function UserHomeScreen() {
                 <View style={styles.modalHeaderContent}>
                   <View style={styles.modalTitleContainer}>
                     <MaterialIcons name="search" size={24} color="white" />
-                    <Text style={styles.modalTitle}>Search Signs</Text>
+                    <Text style={styles.modalTitle}>{t('searchSignsTitle', language)}</Text>
                   </View>
                   <TouchableOpacity onPress={closeSearchModal} style={styles.closeButton}>
                     <MaterialIcons name="close" size={24} color="white" />
@@ -631,7 +684,7 @@ export default function UserHomeScreen() {
                 <View style={styles.searchInputContainer}>
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Enter sign name or description..."
+                    placeholder={t('enterSignName', language)}
                     placeholderTextColor="#999"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -656,7 +709,7 @@ export default function UserHomeScreen() {
                     >
                       <MaterialIcons name="refresh" size={24} color="#667eea" />
                     </Animatable.View>
-                    <Text style={styles.searchLoadingText}>Searching...</Text>
+                    <Text style={styles.searchLoadingText}>{t('searching', language)}</Text>
                   </View>
                 )}
                 
@@ -671,8 +724,8 @@ export default function UserHomeScreen() {
                     searchQuery && !loading ? (
                       <View style={styles.noResults}>
                         <MaterialIcons name="search-off" size={48} color="#ccc" />
-                        <Text style={styles.noResultsText}>No signs found</Text>
-                        <Text style={styles.noResultsSubtext}>Try a different search term</Text>
+                        <Text style={styles.noResultsText}>{t('noSignsFound', language)}</Text>
+                        <Text style={styles.noResultsSubtext}>{t('tryDifferentSearch', language)}</Text>
                       </View>
                     ) : null
                   }
@@ -696,7 +749,7 @@ export default function UserHomeScreen() {
               >
                 <MaterialIcons name="refresh" size={32} color="#feca57" />
               </Animatable.View>
-              <Text style={styles.loadingText}>Loading...</Text>
+              <Text style={styles.loadingText}>{t('loading', language)}</Text>
             </Animatable.View>
           </View>
         )}

@@ -93,6 +93,12 @@ class NotificationService {
     console.log('Connected users before adding:', this.connectedUsers.size);
     console.log('Current connected users:', Array.from(this.connectedUsers.entries()));
     
+    // Check if user is already connected
+    const existingSocketId = this.connectedUsers.get(userId);
+    if (existingSocketId) {
+      console.log(`⚠️ User ${userId} already connected with socket ${existingSocketId}, updating to ${socket.id}`);
+    }
+    
     this.connectedUsers.set(userId, socket.id);
     
     console.log('Connected users after adding:', this.connectedUsers.size);

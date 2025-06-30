@@ -348,4 +348,137 @@ router.post('/avatar', require('../middleware/auth').auth, uploadAvatar.single('
   }
 });
 
+// Get user preferences
+router.get('/preferences', require('../middleware/auth').auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id;
+    
+    const result = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const preferences = result.rows[0].preferences || {
+      notifications_enabled: true,
+      language: 'English',
+      voice_enabled: false,
+      auto_location: true,
+      dark_mode: false
+    };
+    
+    res.json(preferences);
+  } catch (error) {
+    console.error('Get preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user preferences
+router.put('/preferences', require('../middleware/auth').auth, async (req, res) => {
+  try {
+    const userId = req.user.user.id;
+    const { preferences } = req.body;
+    
+    if (!preferences || typeof preferences !== 'object') {
+      return res.status(400).json({ message: 'Preferences object is required' });
+    }
+    
+    // Get current preferences
+    const currentResult = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Merge with existing preferences
+    const currentPreferences = currentResult.rows[0].preferences || {};
+    const updatedPreferences = { ...currentPreferences, ...preferences };
+    
+    // Update preferences in database
+    const result = await pool.query(
+      'UPDATE users SET preferences = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, preferences',
+      [JSON.stringify(updatedPreferences), userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ 
+      preferences: updatedPreferences, 
+      message: 'Preferences updated successfully' 
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user preferences (alias)
+router.get('/users/preferences', require('../middleware/auth').auth, async (req, res) => {
+  // Delegate to the same logic as /preferences
+  const userId = req.user.user.id;
+  try {
+    const result = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const preferences = result.rows[0].preferences || {
+      notifications_enabled: true,
+      language: 'English',
+      voice_enabled: false,
+      auto_location: true,
+      dark_mode: false
+    };
+    res.json(preferences);
+  } catch (error) {
+    console.error('Get preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user preferences (alias)
+router.put('/users/preferences', require('../middleware/auth').auth, async (req, res) => {
+  const userId = req.user.user.id;
+  const { preferences } = req.body;
+  try {
+    if (!preferences || typeof preferences !== 'object') {
+      return res.status(400).json({ message: 'Preferences object is required' });
+    }
+    const currentResult = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const currentPreferences = currentResult.rows[0].preferences || {};
+    const updatedPreferences = { ...currentPreferences, ...preferences };
+    const result = await pool.query(
+      'UPDATE users SET preferences = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, preferences',
+      [JSON.stringify(updatedPreferences), userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ 
+      preferences: updatedPreferences, 
+      message: 'Preferences updated successfully' 
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 

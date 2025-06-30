@@ -189,27 +189,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSaveChanges = () => {
-    Alert.alert(
-      'Save Changes',
-      'Are you sure you want to save all changes?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Save', 
-          onPress: async () => {
-            await handleAction(async () => {
-              console.log('Saving changes:', { username, email, userImage });
-              // Simulate save delay
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              Alert.alert('Success', 'Your changes have been saved!');
-            }, 'Save changes');
-          }
-        }
-      ]
-    );
-  };
-
   const handleLogout = async () => {
     Alert.alert(
       'Sign Out',
@@ -388,22 +367,6 @@ export default function ProfileScreen() {
             delay={600}
             style={styles.actionsSection}
           >
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={handleSaveChanges}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={['#48dbfb', '#0abde3']}
-                style={styles.saveButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <MaterialIcons name="save" size={20} color="white" />
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
             <TouchableOpacity 
               style={styles.logoutButton} 
               onPress={handleLogout}
@@ -730,28 +693,6 @@ const styles = StyleSheet.create({
   actionsSection: {
     paddingHorizontal: 20,
     gap: 16,
-  },
-  saveButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-  },
-  saveButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    gap: 8,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
   },
   logoutButton: {
     borderRadius: 16,

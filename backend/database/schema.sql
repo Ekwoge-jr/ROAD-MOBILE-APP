@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url VARCHAR(255),
     push_token VARCHAR(255), -- For Expo push notifications
     notification_preferences JSONB DEFAULT '{"road_signs": true, "road_state": true, "reports": true, "proximity_radius": 10}', -- User notification preferences
+    preferences JSONB DEFAULT '{"notifications_enabled": true, "language": "English", "voice_enabled": false, "auto_location": true, "dark_mode": false}', -- General user preferences
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

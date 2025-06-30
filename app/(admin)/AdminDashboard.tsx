@@ -781,6 +781,24 @@ export default function AdminDashboard() {
     Alert.alert('Debug Info', 'Check console logs for connection debug information');
   };
 
+  const handleDebugNotificationService = async () => {
+    await handleAction(async () => {
+      const response = await fetch(`${API_BASE_URL}/api/admin/debug-notification-service`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${await AsyncStorage.getItem('authToken')}`
+        },
+      });
+      
+      const data = await response.json();
+      console.log('Debug notification service response:', data);
+      Alert.alert(
+        'Notification Service Debug', 
+        `Service exists: ${data.service_exists}\nConnected users: ${data.connected_users_count}\nIO connected: ${data.io_connected}\n\nCheck console for full details.`
+      );
+    }, 'debug notification service');
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#667eea" />
@@ -1470,6 +1488,22 @@ export default function AdminDashboard() {
         >
           <LinearGradient
             colors={['#6c5ce7', '#a29bfe']}
+            style={styles.fabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <MaterialIcons name="bug-report" size={24} color="white" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Debug Notification Service Button */}
+        <TouchableOpacity
+          style={[styles.fab, styles.debugNotificationFab]}
+          onPress={handleDebugNotificationService}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#feca57', '#ff9ff3']}
             style={styles.fabGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -2185,6 +2219,10 @@ const styles = StyleSheet.create({
   },
   debugFab: {
     bottom: 240,
+    right: 20,
+  },
+  debugNotificationFab: {
+    bottom: 310,
     right: 20,
   },
 });

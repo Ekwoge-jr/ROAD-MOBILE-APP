@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -10,12 +10,16 @@ import {
   Animated,
   SafeAreaView,
   StatusBar,
-  Alert
+  Alert,
+  Linking
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ApiService } from '../services/ApiService';
+import { t } from '../utils/translate';
 
 interface SettingOption {
   id: string;
@@ -26,13 +30,30 @@ interface SettingOption {
   onPress?: () => void;
 }
 
+interface UserSettings {
+  notificationsEnabled: boolean;
+  language: string;
+  voiceEnabled: boolean;
+  darkMode: boolean;
+  autoLocation: boolean;
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [language, setLanguage] = useState('English');
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const apiService = new ApiService();
+  
+  // Settings state
+  const [settings, setSettings] = useState<UserSettings>({
+    notificationsEnabled: true,
+    language: 'English',
+    voiceEnabled: false,
+    darkMode: false,
+    autoLocation: true
+  });
 
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<'en' | 'fr'>('en');
 
   const scaleAnims = useRef([
     new Animated.Value(1),
@@ -43,6 +64,67 @@ export default function SettingsScreen() {
     new Animated.Value(1),
     new Animated.Value(1)
   ]).current;
+
+  // Load settings from storage
+  useEffect(() => {
+    loadSettings();
+    loadUserData();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('userSettings');
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(parsedSettings);
+        
+        // Set current language for translation
+        if (parsedSettings.language === 'French') {
+          setCurrentLanguage('fr');
+        } else {
+          setCurrentLanguage('en');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const loadUserData = async () => {
+    try {
+      const userData = await apiService.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  const saveSettings = async (newSettings: UserSettings) => {
+    try {
+      await AsyncStorage.setItem('userSettings', JSON.stringify(newSettings));
+      setSettings(newSettings);
+      
+      // Update current language for translation
+      if (newSettings.language === 'French') {
+        setCurrentLanguage('fr');
+      } else {
+        setCurrentLanguage('en');
+      }
+      
+      // Update user preferences on server
+      if (user) {
+        await apiService.updateUserPreferences({
+          notifications_enabled: newSettings.notificationsEnabled,
+          language: newSettings.language,
+          voice_enabled: newSettings.voiceEnabled,
+          auto_location: newSettings.autoLocation
+        });
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      Alert.alert(t('error', currentLanguage), t('failedToSaveSettings', currentLanguage));
+    }
+  };
 
   const animatePress = (index: number) => {
     Animated.sequence([
@@ -61,84 +143,170 @@ export default function SettingsScreen() {
 
   const handleLanguageSelect = () => {
     Alert.alert(
-      'Select Language',
-      'Choose your preferred language',
+      t('selectLanguage', currentLanguage),
+      t('chooseLanguage', currentLanguage),
       [
-        { text: 'English', onPress: () => setLanguage('English') },
-        { text: 'French', onPress: () => setLanguage('French') },
-        { text: 'Spanish', onPress: () => setLanguage('Spanish') },
-        { text: 'Cancel', style: 'cancel' }
+        { text: t('english', currentLanguage), onPress: () => updateSetting('language', 'English') },
+        { text: t('french', currentLanguage), onPress: () => updateSetting('language', 'French') },
+        { text: t('spanish', currentLanguage), onPress: () => updateSetting('language', 'Spanish') },
+        { text: t('cancel', currentLanguage), style: 'cancel' }
+      ]
+    );
+  };
+
+  const updateSetting = (key: keyof UserSettings, value: any) => {
+    const newSettings = { ...settings, [key]: value };
+    saveSettings(newSettings);
+  };
+
+  const handleToggle = async (optionId: string, value: boolean) => {
+    setLoading(true);
+    try {
+      switch (optionId) {
+        case 'notifications':
+          updateSetting('notificationsEnabled', value);
+          break;
+        case 'voice':
+          updateSetting('voiceEnabled', value);
+          break;
+        case 'darkMode':
+          updateSetting('darkMode', value);
+          break;
+        case 'autoLocation':
+          updateSetting('autoLocation', value);
+          break;
+      }
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      Alert.alert(t('error', currentLanguage), t('failedToUpdateSetting', currentLanguage));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNavigation = (screen: string) => {
+    switch (screen) {
+      case 'help':
+        router.push('/HelpSupportScreen');
+        break;
+      case 'privacy':
+        router.push('/PrivacyPolicyScreen');
+        break;
+      case 'about':
+        router.push('/AboutScreen');
+        break;
+      case 'profile':
+        router.push('/ProfileScreen');
+        break;
+      case 'account':
+        router.push('/AccountSettingsScreen');
+        break;
+      case 'feedback':
+        handleFeedback();
+        break;
+    }
+  };
+
+  const handleFeedback = () => {
+    Alert.alert(
+      t('sendFeedbackTitle', currentLanguage),
+      t('sendFeedbackMessage', currentLanguage),
+      [
+        { text: t('email', currentLanguage), onPress: () => Linking.openURL('mailto:support@roadbro.com') },
+        { text: t('rateApp', currentLanguage), onPress: () => Linking.openURL('https://play.google.com/store/apps/details?id=com.roadbro.app') },
+        { text: t('cancel', currentLanguage), style: 'cancel' }
       ]
     );
   };
 
   const settingsSections = [
     {
-      title: 'Preferences',
+      title: t('account', currentLanguage),
+      options: [
+        {
+          id: 'profile',
+          title: t('profileSettings', currentLanguage),
+          icon: 'person' as const,
+          type: 'navigation' as const,
+          onPress: () => handleNavigation('profile')
+        },
+        {
+          id: 'account',
+          title: t('accountSecurity', currentLanguage),
+          icon: 'security' as const,
+          type: 'navigation' as const,
+          onPress: () => handleNavigation('account')
+        }
+      ]
+    },
+    {
+      title: t('preferences', currentLanguage),
       options: [
         {
           id: 'language',
-          title: 'Language',
+          title: t('language', currentLanguage),
           icon: 'language' as const,
           type: 'selector' as const,
-          value: language,
+          value: settings.language,
           onPress: handleLanguageSelect
         },
         {
           id: 'notifications',
-          title: 'Notifications',
+          title: t('notifications', currentLanguage),
           icon: 'notifications' as const,
           type: 'toggle' as const,
-          value: notificationsEnabled
+          value: settings.notificationsEnabled
         },
         {
           id: 'voice',
-          title: 'Voice Guidance',
+          title: t('voiceGuidance', currentLanguage),
           icon: 'record-voice-over' as const,
           type: 'toggle' as const,
-          value: voiceEnabled
+          value: settings.voiceEnabled
         },
+        {
+          id: 'autoLocation',
+          title: t('autoLocation', currentLanguage),
+          icon: 'location-on' as const,
+          type: 'toggle' as const,
+          value: settings.autoLocation
+        }
       ]
     },
     {
-      title: 'Support & Legal',
+      title: t('supportLegal', currentLanguage),
       options: [
         {
           id: 'help',
-          title: 'Help & Support',
+          title: t('helpSupportSettings', currentLanguage),
           icon: 'help' as const,
           type: 'navigation' as const,
-          onPress: () => console.log('Help pressed')
+          onPress: () => handleNavigation('help')
+        },
+        {
+          id: 'feedback',
+          title: t('sendFeedback', currentLanguage),
+          icon: 'feedback' as const,
+          type: 'navigation' as const,
+          onPress: () => handleNavigation('feedback')
         },
         {
           id: 'privacy',
-          title: 'Privacy Policy',
+          title: t('privacyPolicy', currentLanguage),
           icon: 'policy' as const,
           type: 'navigation' as const,
-          onPress: () => console.log('Privacy pressed')
+          onPress: () => handleNavigation('privacy')
         },
         {
           id: 'about',
-          title: 'About ROADBRO',
+          title: t('aboutRoadbro', currentLanguage),
           icon: 'info' as const,
           type: 'navigation' as const,
-          onPress: () => console.log('About pressed')
+          onPress: () => handleNavigation('about')
         }
       ]
     }
   ];
-
-  const handleToggle = (optionId: string, value: boolean) => {
-    switch (optionId) {
-      case 'notifications':
-        setNotificationsEnabled(value);
-        break;
-      case 'voice':
-        setVoiceEnabled(value);
-        break;
-
-    }
-  };
 
   const renderSettingOption = (option: any, index: number, sectionIndex: number) => {
     const animIndex = sectionIndex * 10 + index; // Unique index for each item
@@ -246,8 +414,8 @@ export default function SettingsScreen() {
                 <MaterialIcons name="arrow-back" size={24} color="white" />
               </TouchableOpacity>
               <View style={styles.headerCenter}>
-                <Text style={styles.headerTitle}>Settings</Text>
-                <Text style={styles.headerSubtitle}>Customize your experience</Text>
+                <Text style={styles.headerTitle}>{t('settings', currentLanguage)}</Text>
+                <Text style={styles.headerSubtitle}>{t('customizeExperience', currentLanguage)}</Text>
               </View>
               <View style={styles.headerRight}>
                 <TouchableOpacity style={styles.headerButton}>
@@ -293,9 +461,9 @@ export default function SettingsScreen() {
                 <View style={styles.appLogoContainer}>
                   <MaterialIcons name="directions-car" size={32} color="#feca57" />
                 </View>
-                <Text style={styles.appName}>ROADBRO</Text>
+                <Text style={styles.appName}>{t('roadbro', currentLanguage)}</Text>
                 <Text style={styles.appVersion}>Version 1.0.0</Text>
-                <Text style={styles.appDescription}>Your trusted road companion for safe travels</Text>
+                <Text style={styles.appDescription}>{t('yourTrustedCompanion', currentLanguage)}</Text>
               </View>
             </View>
           </Animatable.View>
@@ -315,7 +483,7 @@ export default function SettingsScreen() {
               >
                 <MaterialIcons name="refresh" size={32} color="#feca57" />
               </Animatable.View>
-              <Text style={styles.loadingText}>Updating...</Text>
+              <Text style={styles.loadingText}>{t('updating', currentLanguage)}</Text>
             </Animatable.View>
           </View>
         )}

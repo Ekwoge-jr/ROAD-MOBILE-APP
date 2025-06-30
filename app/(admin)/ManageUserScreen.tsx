@@ -52,7 +52,6 @@ export default function ManageUsersScreen() {
   
   // Real users data
   const [users, setUsers] = useState<User[]>([]);
-  const [userStats, setUserStats] = useState<any>({});
   const [pagination, setPagination] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -65,7 +64,6 @@ export default function ManageUsersScreen() {
       await new Promise(resolve => setTimeout(resolve, 100));
       console.log('ManageUserScreen - Initializing data...');
       await fetchUsers();
-      await fetchUserStats();
     };
     
     initializeData();
@@ -82,17 +80,6 @@ export default function ManageUsersScreen() {
       Alert.alert('Error', 'Failed to load users');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUserStats = async () => {
-    try {
-      console.log('ManageUserScreen - Fetching user stats...');
-      const stats = await apiService.getUserStats();
-      console.log('ManageUserScreen - User stats received:', stats);
-      setUserStats(stats);
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
     }
   };
 
@@ -122,7 +109,6 @@ export default function ManageUsersScreen() {
       
       // Refresh users and stats
       await fetchUsers();
-      await fetchUserStats();
       
       Alert.alert(
         'Success', 
@@ -159,7 +145,6 @@ export default function ManageUsersScreen() {
               
               // Refresh users and stats
               await fetchUsers();
-              await fetchUserStats();
               
               setSelectedUsers([]);
               setBulkSelectMode(false);
@@ -307,10 +292,6 @@ export default function ManageUsersScreen() {
   );
 
   const filteredUsers = users;
-  const activeCount = userStats.active_users || 0;
-  const suspendedCount = userStats.suspended_users || 0;
-  const pendingCount = userStats.pending_users || 0;
-  const totalCount = userStats.total_users || 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -339,7 +320,7 @@ export default function ManageUsersScreen() {
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Manage Users</Text>
               <Text style={styles.headerSubtitle}>
-                {filteredUsers.length} users • {activeCount} active
+                {filteredUsers.length} users
               </Text>
             </View>
             
@@ -374,33 +355,6 @@ export default function ManageUsersScreen() {
               </TouchableOpacity>
             )}
           </View>
-        </Animatable.View>
-
-        {/* Quick Stats */}
-        <Animatable.View 
-          animation="fadeInUp" 
-          duration={1000}
-          delay={400}
-          style={styles.statsSection}
-        >
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{totalCount}</Text>
-              <Text style={styles.statLabel}>Total Users</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{activeCount}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{suspendedCount}</Text>
-              <Text style={styles.statLabel}>Suspended</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
-            </View>
-          </ScrollView>
         </Animatable.View>
 
         {/* Bulk Actions Bar */}
@@ -714,35 +668,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
     marginRight: 8,
-  },
-
-  // Stats Section
-  statsSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-  },
-  statsScroll: {
-    paddingBottom: 5,
-  },
-  statCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    width: 120,
-    marginRight: 12,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
-    textAlign: 'center',
   },
 
   // Bulk Actions Bar

@@ -19,6 +19,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { t } from '../utils/translate';
 import { ApiService } from '../services/ApiService';
 
 const { width, height } = Dimensions.get('window');
@@ -34,9 +37,63 @@ export default function ReportScreen() {
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [language, setLanguage] = useState<'en' | 'fr'>('en');
   
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Detect language from AsyncStorage
+  useEffect(() => {
+    const fetchLanguage = async () => {
+      try {
+        const savedSettings = await AsyncStorage.getItem('userSettings');
+        if (savedSettings) {
+          const parsedSettings = JSON.parse(savedSettings);
+          if (parsedSettings.language === 'French') {
+            setLanguage('fr');
+          } else if (parsedSettings.language === 'English') {
+            setLanguage('en');
+          } else {
+            setLanguage('en'); // Default to English
+          }
+        }
+      } catch (e) {
+        setLanguage('en');
+      }
+    };
+    fetchLanguage();
+  }, []);
+
+  // Update language when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const updateLanguage = async () => {
+        try {
+          const savedSettings = await AsyncStorage.getItem('userSettings');
+          if (savedSettings) {
+            const parsedSettings = JSON.parse(savedSettings);
+            if (parsedSettings.language === 'French') {
+              setLanguage('fr');
+            } else if (parsedSettings.language === 'English') {
+              setLanguage('en');
+            } else {
+              setLanguage('en'); // Default to English
+            }
+          }
+        } catch (e) {
+          setLanguage('en');
+        }
+      };
+      updateLanguage();
+    }, [])
+  );
+
+  // Update initial location text when language changes
+  useEffect(() => {
+    if (location === 'Fetching location...' || location === 'Récupération de la localisation...') {
+      setLocation(t('fetchingLocation', language));
+    }
+  }, [language]);
 
   useEffect(() => {
     // Fade in animation
@@ -67,7 +124,7 @@ export default function ReportScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocation('Location permission denied');
+        setLocation(t('locationPermissionDenied', language));
         return;
       }
 
@@ -95,7 +152,7 @@ export default function ReportScreen() {
       }
     } catch (error) {
       console.error('Error getting location:', error);
-      setLocation('Unable to get location');
+      setLocation(t('unableToGetLocation', language));
     }
   };
 
@@ -118,7 +175,7 @@ export default function ReportScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant photo library permissions to select photos.');
+        Alert.alert(t('permissionRequired', language), t('photoLibraryPermission', language));
         return;
       }
 
@@ -132,7 +189,7 @@ export default function ReportScreen() {
         setImage(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      Alert.alert(t('error', language), t('failedToPickImage', language));
     }
   };
 
@@ -140,7 +197,7 @@ export default function ReportScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera permissions to take photos.');
+        Alert.alert(t('permissionRequired', language), t('cameraPermission', language));
         return;
       }
 
@@ -154,30 +211,30 @@ export default function ReportScreen() {
         setImage(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      Alert.alert(t('error', language), t('failedToTakePhoto', language));
     }
   };
 
   const showImageOptions = () => {
     Alert.alert(
-      'Add Photo',
-      'Choose how you want to add a photo',
+      t('addPhotoTitle', language),
+      t('chooseHowToAddPhoto', language),
       [
-        { text: 'Camera', onPress: takePhoto },
-        { text: 'Gallery', onPress: pickImage },
-        { text: 'Cancel', style: 'cancel' }
+        { text: t('camera', language), onPress: takePhoto },
+        { text: t('gallery', language), onPress: pickImage },
+        { text: t('cancel', language), style: 'cancel' }
       ]
     );
   };
 
   const handleSubmit = async () => {
     if (!reportTitle.trim() || !report.trim()) {
-      Alert.alert('Missing Information', 'Please provide a title and description for your report.');
+      Alert.alert(t('missingInformation', language), t('provideTitleAndDescription', language));
       return;
     }
 
     if (!currentLocation) {
-      Alert.alert('Location Required', 'Please allow location access to submit a report.');
+      Alert.alert(t('locationRequired', language), t('allowLocationAccess', language));
       return;
     }
 
@@ -193,7 +250,7 @@ export default function ReportScreen() {
           imageUrl = uploadResult.imageUrl;
         } catch (error) {
           console.error('Image upload failed:', error);
-          Alert.alert('Warning', 'Report submitted but image upload failed. You can add the image later.');
+          Alert.alert(t('error', language), t('imageUploadFailed', language));
         }
       }
 
@@ -212,24 +269,24 @@ export default function ReportScreen() {
       await apiService.createReport(reportData);
       
       Alert.alert(
-        'Report Submitted!',
-        'Thank you for helping improve road safety. Your report has been submitted successfully and will be reviewed by our team.',
+        t('reportSubmitted', language),
+        t('thankYouForHelping', language),
         [
           {
-            text: 'Submit Another',
+            text: t('submitAnother', language),
             onPress: () => {
               setReport('');
               setReportTitle('');
               setImage(null);
             }
           },
-          { text: 'Done', style: 'default' }
+          { text: t('done', language), style: 'default' }
         ]
       );
       
     } catch (error) {
       console.error('Report submission error:', error);
-      Alert.alert('Error', 'Failed to submit report. Please check your connection and try again.');
+      Alert.alert(t('error', language), t('failedToSubmitReport', language));
     } finally {
       setLoading(false);
     }
@@ -279,8 +336,8 @@ export default function ReportScreen() {
                 <MaterialIcons name="report-problem" size={32} color="#feca57" />
               </View>
               <View style={styles.headerText}>
-                <Text style={styles.title}>Road Report</Text>
-                <Text style={styles.subtitle}>Help improve road safety by reporting issues</Text>
+                <Text style={styles.title}>{t('roadReport', language)}</Text>
+                <Text style={styles.subtitle}>{t('helpImproveRoadSafety', language)}</Text>
               </View>
             </View>
           </View>
@@ -305,12 +362,12 @@ export default function ReportScreen() {
             <View style={styles.locationGlass}>
               <View style={styles.locationHeader}>
                 <MaterialIcons name="location-pin" size={24} color="#feca57" />
-                <Text style={styles.locationTitle}>Current Location</Text>
+                <Text style={styles.locationTitle}>{t('currentLocation', language)}</Text>
               </View>
               <Text style={styles.locationText}>{location}</Text>
               <View style={styles.locationAccuracy}>
                 <MaterialIcons name="gps-fixed" size={16} color="#48dbfb" />
-                <Text style={styles.accuracyText}>Auto-detected location</Text>
+                <Text style={styles.accuracyText}>{t('autoDetectedLocation', language)}</Text>
               </View>
             </View>
           </Animatable.View>
@@ -322,17 +379,17 @@ export default function ReportScreen() {
             delay={400}
             style={styles.descriptionSection}
           >
-            <Text style={styles.sectionTitle}>Report Details</Text>
+            <Text style={styles.sectionTitle}>{t('reportDetails', language)}</Text>
             
             {/* Report Title */}
             <View style={styles.inputGlass}>
               <View style={styles.inputHeader}>
                 <MaterialIcons name="title" size={20} color="#feca57" />
-                <Text style={styles.inputLabel}>Report Title</Text>
+                <Text style={styles.inputLabel}>{t('reportTitle', language)}</Text>
               </View>
               <TextInput
                 style={styles.textInput}
-                placeholder="Brief title for your report..."
+                placeholder={t('briefTitleForReport', language)}
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 value={reportTitle}
                 onChangeText={setReportTitle}
@@ -345,14 +402,14 @@ export default function ReportScreen() {
             <View style={styles.inputGlass}>
               <View style={styles.inputHeader}>
                 <MaterialIcons name="category" size={20} color="#feca57" />
-                <Text style={styles.inputLabel}>Report Type</Text>
+                <Text style={styles.inputLabel}>{t('reportType', language)}</Text>
               </View>
               <View style={styles.typeContainer}>
                 {[
-                  { value: 'road_issue', label: 'Road Issue', icon: 'road' },
-                  { value: 'sign_problem', label: 'Sign Problem', icon: 'traffic' },
-                  { value: 'safety_hazard', label: 'Safety Hazard', icon: 'warning' },
-                  { value: 'construction', label: 'Construction', icon: 'construction' }
+                  { value: 'road_issue', label: t('roadIssue', language), icon: 'road' },
+                  { value: 'sign_problem', label: t('signProblem', language), icon: 'traffic' },
+                  { value: 'safety_hazard', label: t('safetyHazard', language), icon: 'warning' },
+                  { value: 'construction', label: t('construction', language), icon: 'construction' }
                 ].map((type) => (
                   <TouchableOpacity
                     key={type.value}
@@ -382,14 +439,14 @@ export default function ReportScreen() {
             <View style={styles.inputGlass}>
               <View style={styles.inputHeader}>
                 <MaterialIcons name="priority-high" size={20} color="#feca57" />
-                <Text style={styles.inputLabel}>Priority Level</Text>
+                <Text style={styles.inputLabel}>{t('priorityLevel', language)}</Text>
               </View>
               <View style={styles.priorityContainer}>
                 {[
-                  { value: 'low', label: 'Low', color: '#1dd1a1' },
-                  { value: 'medium', label: 'Medium', color: '#feca57' },
-                  { value: 'high', label: 'High', color: '#ff9ff3' },
-                  { value: 'urgent', label: 'Urgent', color: '#ff6b6b' }
+                  { value: 'low', label: t('low', language), color: '#1dd1a1' },
+                  { value: 'medium', label: t('medium', language), color: '#feca57' },
+                  { value: 'high', label: t('high', language), color: '#ff9ff3' },
+                  { value: 'urgent', label: t('urgent', language), color: '#ff6b6b' }
                 ].map((priorityOption) => (
                   <TouchableOpacity
                     key={priorityOption.value}
@@ -419,11 +476,11 @@ export default function ReportScreen() {
             <View style={styles.inputGlass}>
               <View style={styles.inputHeader}>
                 <MaterialIcons name="edit" size={20} color="#feca57" />
-                <Text style={styles.inputLabel}>Describe the problem</Text>
+                <Text style={styles.inputLabel}>{t('describeTheProblem', language)}</Text>
               </View>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g., Large pothole on Main Street near the traffic light causing vehicle damage..."
+                placeholder={t('reportPlaceholder', language)}
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
                 multiline
                 value={report}
@@ -441,7 +498,7 @@ export default function ReportScreen() {
             delay={600}
             style={styles.photoSection}
           >
-            <Text style={styles.sectionTitle}>Photo Evidence</Text>
+            <Text style={styles.sectionTitle}>{t('photoEvidence', language)}</Text>
             
             {image ? (
               <View style={styles.imageContainer}>
@@ -471,8 +528,8 @@ export default function ReportScreen() {
                   <View style={styles.photoIcon}>
                     <MaterialIcons name="add-a-photo" size={32} color="#feca57" />
                   </View>
-                  <Text style={styles.photoText}>Add Photo</Text>
-                  <Text style={styles.photoSubtext}>Tap to take photo or choose from gallery</Text>
+                  <Text style={styles.photoText}>{t('addPhoto', language)}</Text>
+                  <Text style={styles.photoSubtext}>{t('tapToTakePhoto', language)}</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -506,12 +563,12 @@ export default function ReportScreen() {
                       style={styles.submitContent}
                     >
                       <MaterialIcons name="refresh" size={24} color="white" />
-                      <Text style={styles.submitText}>Submitting...</Text>
+                      <Text style={styles.submitText}>{t('submitting', language)}</Text>
                     </Animatable.View>
                   ) : (
                     <View style={styles.submitContent}>
                       <MaterialIcons name="send" size={24} color="white" />
-                      <Text style={styles.submitText}>Submit Report</Text>
+                      <Text style={styles.submitText}>{t('submitReport', language)}</Text>
                     </View>
                   )}
                 </LinearGradient>
@@ -529,20 +586,20 @@ export default function ReportScreen() {
             <View style={styles.tipsGlass}>
               <View style={styles.tipsHeader}>
                 <MaterialIcons name="lightbulb" size={20} color="#feca57" />
-                <Text style={styles.tipsTitle}>Helpful Tips</Text>
+                <Text style={styles.tipsTitle}>{t('helpfulTips', language)}</Text>
               </View>
               <View style={styles.tipsList}>
                 <View style={styles.tipItem}>
                   <MaterialIcons name="check-circle" size={16} color="#48dbfb" />
-                  <Text style={styles.tipText}>Include specific landmarks or street names</Text>
+                  <Text style={styles.tipText}>{t('includeSpecificLandmarks', language)}</Text>
                 </View>
                 <View style={styles.tipItem}>
                   <MaterialIcons name="check-circle" size={16} color="#48dbfb" />
-                  <Text style={styles.tipText}>Take clear photos showing the issue</Text>
+                  <Text style={styles.tipText}>{t('takeClearPhotos', language)}</Text>
                 </View>
                 <View style={styles.tipItem}>
                   <MaterialIcons name="check-circle" size={16} color="#48dbfb" />
-                  <Text style={styles.tipText}>Describe the severity and impact</Text>
+                  <Text style={styles.tipText}>{t('describeSeverityAndImpact', language)}</Text>
                 </View>
               </View>
             </View>

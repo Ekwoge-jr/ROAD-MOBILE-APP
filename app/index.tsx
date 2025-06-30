@@ -114,28 +114,6 @@ export default function RootLayout() {
                 <View style={styles.buttonGlow} />
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Secondary Button */}
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push("/(tabs)/HomeScreen")}
-              activeOpacity={0.8}
-            >
-              <View style={styles.secondaryButtonInner}>
-                <Text style={styles.secondaryButtonText}>Explore Home</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Admin Button */}
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push("/(admin)/AdminDashboard")}
-              activeOpacity={0.8}
-            >
-              <View style={styles.secondaryButtonInner}>
-                <Text style={styles.secondaryButtonText}>Admin</Text>
-              </View>
-            </TouchableOpacity>
           </Animatable.View>
 
           {/* Feature Highlights */}
@@ -335,26 +313,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     opacity: 0.8,
-  },
-  secondaryButton: {
-    width: '100%',
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  secondaryButtonInner: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 26,
-  },
-  secondaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.5,
   },
 
   // Features Section
