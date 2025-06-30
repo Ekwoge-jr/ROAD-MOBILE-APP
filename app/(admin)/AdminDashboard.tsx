@@ -389,94 +389,84 @@ export default function AdminDashboard() {
   };
 
   const handleAddSign = async () => {
-    if (!newSignName.trim() || !selectedCategory) {
-      Alert.alert('Error', 'Please enter a sign name and select a category');
+    if (!newSignName || !newSignDescription || !newSignMeaning || !selectedCategory) {
+      Alert.alert('Error', 'Please fill all fields');
       return;
     }
 
+    const formData = new FormData();
+    formData.append('name', newSignName);
+    formData.append('description', newSignDescription);
+    formData.append('meaning', newSignMeaning);
+    formData.append('category_id', selectedCategory.id.toString());
+
+    if (newSignImage) {
+      const uriParts = newSignImage.split('.');
+      const fileType = uriParts[uriParts.length - 1];
+      formData.append('image', {
+        uri: newSignImage,
+        name: `photo.${fileType}`,
+        type: `image/${fileType}`,
+      } as any);
+    }
+
     await handleAction(async () => {
-      let imageUrl = null;
-      
-      // Upload image if selected
-      if (newSignImage) {
-        try {
-          const uploadResult = await apiService.uploadSignImage(newSignImage);
-          imageUrl = uploadResult.imageUrl;
-        } catch (error) {
-          console.error('Image upload failed:', error);
-          Alert.alert('Warning', 'Sign created but image upload failed. You can add the image later.');
-        }
-      }
-
-      const newSign = await apiService.createSign({
-        name: newSignName.trim(),
-        description: newSignDescription.trim() || newSignName.trim(),
-        meaning: newSignMeaning.trim() || newSignName.trim(),
-        image_url: imageUrl,
-        category_id: selectedCategory.id
-      });
-
-      // Reload category signs and categories
-      await Promise.all([
-        loadCategorySigns(selectedCategory.id),
-        loadSignCategories()
-      ]);
-      
+      await apiService.addSign(formData);
+      Alert.alert('Success', 'Sign added successfully');
+      setAddSignModalVisible(false);
+      // Reset form
       setNewSignName('');
       setNewSignDescription('');
       setNewSignMeaning('');
       setNewSignImage(null);
-      setAddSignModalVisible(false);
-      setSelectedCategory(null);
-      
-      Alert.alert('Success', 'Sign added successfully!');
-    }, 'add sign');
+      // Refresh signs for the category
+      if (selectedCategory) {
+        await loadCategorySigns(selectedCategory.id);
+      }
+    }, 'add new sign');
   };
 
   const handleUpdateSign = async () => {
-    if (!editSignName.trim() || !editingSign) {
-      Alert.alert('Error', 'Please enter a sign name');
+    if (!editingSign) {
       return;
     }
 
+    const formData = new FormData();
+    formData.append('name', editSignName);
+    formData.append('description', editSignDescription);
+    formData.append('meaning', editSignMeaning);
+    formData.append('category_id', editingSign.category_id.toString());
+
+    if (editSignImage) {
+      if (editSignImage.startsWith('file://')) {
+        const uriParts = editSignImage.split('.');
+        const fileType = uriParts[uriParts.length - 1];
+        formData.append('image', {
+          uri: editSignImage,
+          name: `photo.${fileType}`,
+          type: `image/${fileType}`,
+        } as any);
+      } else {
+        formData.append('image_url', editSignImage);
+      }
+    } else if (editingSign.image_url) {
+      formData.append('image_url', editingSign.image_url);
+    }
+
     await handleAction(async () => {
-      let imageUrl = editingSign.image_url; // Keep existing image URL
-      
-      // Upload new image if selected
-      if (editSignImage) {
-        try {
-          const uploadResult = await apiService.uploadSignImage(editSignImage);
-          imageUrl = uploadResult.imageUrl;
-        } catch (error) {
-          console.error('Image upload failed:', error);
-          Alert.alert('Warning', 'Sign updated but image upload failed. The old image will be kept.');
-        }
-      }
-
-      const updatedSign = await apiService.updateSign(editingSign.id, {
-        name: editSignName.trim(),
-        description: editSignDescription.trim() || editSignName.trim(),
-        meaning: editSignMeaning.trim() || editSignName.trim(),
-        image_url: imageUrl,
-        category_id: editingSign.category_id,
-      });
-
-      // Reload category signs and categories
-      if (selectedCategory) {
-        await Promise.all([
-          loadCategorySigns(selectedCategory.id),
-          loadSignCategories()
-        ]);
-      }
-      
+      await apiService.updateSign(editingSign.id, formData);
+      Alert.alert('Success', 'Sign updated successfully');
+      setEditSignModalVisible(false);
+      // Reset form
+      setEditingSign(null);
       setEditSignName('');
       setEditSignDescription('');
       setEditSignMeaning('');
       setEditSignImage(null);
-      setEditingSign(null);
-      setEditSignModalVisible(false);
-      
-      Alert.alert('Success', 'Sign updated successfully!');
+      // Refresh signs for the category
+      if (selectedCategory) {
+        await loadCategorySigns(selectedCategory.id);
+      }
     }, 'update sign');
   };
 

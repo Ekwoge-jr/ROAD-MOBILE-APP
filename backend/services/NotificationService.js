@@ -201,7 +201,7 @@ class NotificationService {
   async sendProximityNotification(notification) {
     try {
       const proximityRadius = 10; // 10km radius
-      const affectedUsers = [];
+      const nearbyUserIds = [];
 
       for (const [userId, location] of this.userLocations) {
         const distance = this.calculateDistance(
@@ -212,16 +212,31 @@ class NotificationService {
         );
 
         if (distance <= proximityRadius) {
-          affectedUsers.push(userId);
+          nearbyUserIds.push(userId);
         }
       }
 
-      // Create notifications for affected users
-      for (const userId of affectedUsers) {
+      if (nearbyUserIds.length === 0) {
+        console.log('No users in proximity to notify.');
+        return;
+      }
+
+      // Get user types to filter out admins
+      const usersResult = await pool.query(
+        `SELECT id, user_type FROM users WHERE id = ANY($1::int[])`,
+        [nearbyUserIds]
+      );
+
+      const normalUserIds = usersResult.rows
+        .filter(user => user.user_type !== 'admin')
+        .map(user => user.id);
+
+      // Create notifications for affected normal users
+      for (const userId of normalUserIds) {
         await this.createNotificationForUser(userId, notification);
       }
 
-      console.log(`Proximity notification sent to ${affectedUsers.length} users`);
+      console.log(`Proximity notification sent to ${normalUserIds.length} normal users.`);
     } catch (error) {
       console.error('Error sending proximity notification:', error);
     }

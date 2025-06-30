@@ -241,10 +241,16 @@ router.delete('/categories/:id', auth, async (req, res) => {
 });
 
 // Update a sign
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, meaning, image_url, category_id } = req.body;
+    const { name, description, meaning, category_id } = req.body;
+    let { image_url } = req.body;
+
+    if (req.file) {
+      image_url = `/uploads/${req.file.filename}`;
+    }
+
     const result = await pool.query(
       'UPDATE road_signs SET name = $1, description = $2, meaning = $3, image_url = $4, category_id = $5 WHERE id = $6 RETURNING *',
       [name, description, meaning, image_url, category_id, id]
@@ -278,27 +284,25 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // Create a new sign
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
-    const { name, description, meaning, image_url, category_id } = req.body;
+    const { name, description, meaning, category_id } = req.body;
+    const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!name || !description || !meaning || !category_id) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
     const result = await pool.query(
       'INSERT INTO road_signs (name, description, meaning, image_url, category_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [name, description, meaning, image_url, category_id]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create sign error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
-
-// Image upload endpoint
-router.post('/upload', auth, upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
-  }
-  // Return the relative path or URL to the uploaded image
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
 });
 
 module.exports = router; 

@@ -568,42 +568,6 @@ export class ApiService {
     }
   }
 
-  async uploadSignImage(imageUri: string) {
-    try {
-      const formData = new FormData();
-      
-      // Create file object from URI
-      const filename = imageUri.split('/').pop() || 'image.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
-      
-      formData.append('image', {
-        uri: imageUri,
-        name: filename,
-        type,
-      } as any);
-
-      const response = await fetch(`${API_BASE_URL}/api/admin/upload-sign-image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${await this.loadToken()}`,
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Image upload error:', error);
-      throw error;
-    }
-  }
-
   async uploadReportImage(imageUri: string) {
     try {
       // Ensure token is loaded
@@ -675,18 +639,50 @@ export class ApiService {
   }
 
   // Sign management
-  async createSign(data: { name: string; description: string; meaning: string; image_url?: string; category_id: number }) {
-    return await this.makeRequest('/api/signs', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  async addSign(formData: FormData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/signs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Add sign error:', error);
+      throw error;
+    }
   }
 
-  async updateSign(id: number, data: { name?: string; description?: string; meaning?: string; image_url?: string; category_id?: number }) {
-    return await this.makeRequest(`/api/signs/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+  async updateSign(id: number, formData: FormData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/signs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Update failed: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Update sign error:', error);
+      throw error;
+    }
   }
 
   async deleteSign(id: number) {
